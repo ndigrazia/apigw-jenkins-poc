@@ -1,0 +1,50 @@
+pipeline {
+    
+    environment {
+		git_remote_repository_url = 'ssh://git@10.1.1.119:30022/POCs/apigw-jenkins/apigw-jenkins-repo.git'
+        git_credential_id = 'jenkins-server'
+        git_branch = 'release'
+		
+        gateway_username = 'nelson.digrazia@gmail.com'
+        gateway_password = '********'
+        gateway_organization = 'produccion'
+		gateway_server = '10.1.1.215'
+        gateway_catalog = 'catalog=apic-catalog://10.1.1.215/orgs/test/catalogs/sb'
+        gateway_product_yaml = 'gestion-de-prefa-producto_1.0.0.yaml'
+        gateway_product_name = 'gestion-de-prefa-producto'
+    }    
+    
+    agent {
+        docker {
+            image 'apic:latest'
+            label 'linux'
+            alwaysPull false
+        }
+    }
+    
+    stages {
+    
+        stage('Downloading from GitLab repository') {
+            steps {
+                git(url: "${git_remote_repository_url}", branch: "${git_branch}", credentialsId: "${git_credential_id}")
+            }
+        }
+        
+        stage('Uploading yaml files to API Gateway') {
+            steps {
+                dir ('src/gateway') {
+                    sh 'apic login --username ${gateway_username} --password ${gateway_password} --server ${gateway_server}'
+                            
+                    sh 'apic drafts:push ${gateway_product_yaml} --server ${gateway_server} --organization  ${gateway_organization}'
+                            
+                    sh 'apic config:set ${gateway_catalog}'
+                    sh 'apic drafts:publish ${gateway_product_name} --server ${gateway_server}'  
+                            
+                    sh 'apic logout --server ${gateway_server}'
+                }
+            }
+        }
+    
+    }
+    
+}

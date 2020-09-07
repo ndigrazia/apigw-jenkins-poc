@@ -1,0 +1,49 @@
+@startuml
+skinparam componentStyle uml2
+
+actor "Developer/Release Manager" as dev
+
+node " API Gateway Dashboard" {
+ [API] as APIGW
+}
+node "GitLab Repository" {
+  [API source project] as source
+  interface HTTP as HttpSource
+  source - HttpSource
+  dev --> HttpSource:Promote event 
+  dev --> HttpSource:Stable release event 
+}
+
+node "Repository Manager" as Repository {
+  [APIC image] as ApicImage
+  [Newman image] as NewmanImage
+}
+
+node "Docker engine" {
+  [APIC container] as APIC
+  [Newman container] as Newman
+  [Docker daemon] as daemon
+  daemon --> ApicImage:pull
+  daemon --> APIC:run 
+  APIC --> source:clone
+  APIC --> APIGW:publish
+  daemon --> NewmanImage:pull
+  daemon --> Newman:run 
+  Newman --> source:clone
+  Newman --> APIGW:execute Test Cases
+}
+
+node "Jenkins" as Jenkins {
+  [Promote Job] as promoteJob
+  promoteJob --> daemon:run APIC image
+  interface HTTP as HttpPromoteJob
+  promoteJob - HttpPromoteJob
+  source --> HttpPromoteJob:Promote event 
+
+  [Stable release Job] as stableJob
+  stableJob --> daemon:run Newman image
+  interface HTTP as HttpStableJob
+  stableJob - HttpStableJob
+  source --> HttpStableJob:Stable release event 
+}
+@enduml
